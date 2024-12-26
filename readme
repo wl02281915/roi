@@ -1,0 +1,9 @@
+1. execaute ROI.py
+
+2. open browser and enter http://127.0.0.1:5000/roi
+
+3. choose a picture 
+
+4. click to draw the region you want, dobule click to end this round
+
+5. click Download ROI File to download json file

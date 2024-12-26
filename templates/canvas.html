@@ -1,0 +1,117 @@
+<!DOCTYE html>
+<html>
+<head>
+    <title>Region of Interest</title>
+</head>
+<body>
+    <label for="uploadInput">Background Image :   </label>
+    <input type="file" id="uploadInput">
+    <br><br>
+    <button onclick="downloadFile()">Download ROI File</button>
+    <button onclick="sendPoints()">Send to AI</button>
+    <br><br>
+    <canvas id="cvs" width="1080" height="720" style="border: 1px solid #000000"></canvas>
+    <script type="text/javascript">
+        var cvs, ctx;
+        var colors = ['Lime','Tan','Fuchsia','Gold','Skyblue','Silver','DarkGoldenRod','MediumPurple',
+		'HotPink','Coral','Maroon','SlateGray','Cyan','SteelBlue','Wheat']
+        var points_java = {}
+        var points_list = []
+        var points = []
+        var area_count = 0
+        var uploadInput = document.getElementById('uploadInput');
+        var originalWidth, originalHeight;
+
+        window.onload = function() {
+            cvs = document.getElementById('cvs');
+            ctx = cvs.getContext('2d');
+            uploadInput.addEventListener('change', handleImageUpload);
+            cvs.addEventListener('click',left_click);
+            cvs.addEventListener('dblclick',double_click);
+            cvs.addEventListener('mousedown', startDrawing);
+            cvs.addEventListener('mouseup', stopDrawing);
+        };
+        
+        function startDrawing(e) {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function left_click(e) {
+            const circle = new Path2D();
+            circle.arc(lastX, lastY, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = colors[area_count];
+            ctx.fill(circle)
+            points_list.push([lastX*originalWidth/1080,lastY*originalHeight/720])
+            /*points_list.push([lastX,lastY])*/
+            points.push([lastX,lastY])
+            if (points.length > 1){
+                ctx.beginPath();
+	        ctx.moveTo(points[points.length-2][0], points[points.length-2][1]);
+		ctx.lineTo(lastX, lastY);
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = colors[area_count];
+                ctx.stroke();
+	    }
+        }
+        
+        function double_click(e){
+            points_java[area_count] = points_list
+            area_count ++
+            points = []
+            points_list = []
+	}
+       
+        function handleImageUpload(event) {
+            var file = event.target.files[0];
+            var reader = new FileReader();
+
+            reader.onload = function(e) {
+                var img = new Image();
+                img.onload = function() {
+                    originalWidth = img.width;
+                    originalHeight = img.height;
+                    ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+                };
+                img.src = e.target.result;
+            };
+
+            reader.readAsDataURL(file);
+        }
+        
+        function downloadFile() {
+            var data = JSON.stringify(points_java)
+            var blob = new Blob([data], { type: 'text/plain' });
+            var a = document.createElement("a");
+            a.href = window.URL.createObjectURL(blob);
+            a.download = "ROI.json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+	function sendPoints() {
+            var ROIpoints = JSON.stringify(points_java);
+            // 发送 HTML 变量到 Flask 后端
+            fetch('/pygetROIpoints', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+		    body: JSON.stringify({ROIpoints: ROIpoints})
+            })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch(error => console.error('Error:', error));
+        }
+
+        console.log(points_java)
+    </script>
+</body>
+</html>
+
